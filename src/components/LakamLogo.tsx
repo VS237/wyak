@@ -73,7 +73,7 @@ export function LakamLogo({ className = "w-36 h-auto" }: { className?: string })
         fontSize="10"
         letterSpacing="3"
         fill="#a1a1aa"
-        texttransform="uppercase"
+        textTransform="uppercase"
       >
         Resto Suite
       </text>

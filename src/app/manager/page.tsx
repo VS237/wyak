@@ -34,6 +34,7 @@ export interface ManagerOrder {
   payment_status: 'PAID' | 'UNPAID' | 'PENDING';
   assigned_server_id: string;
   created_at: string;
+  total_amount?: number;
   items: OrderItem[];
 }
 
@@ -47,7 +48,7 @@ function ManagerDashboardContent() {
   const [selectedReceiptOrder, setSelectedReceiptOrder] = useState<ManagerOrder | null>(null);
 
   const [categories, setCategories] = useState<any[]>([]);
-  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
 
@@ -278,7 +279,7 @@ function ManagerDashboardContent() {
 
       const createdManagerOrder: ManagerOrder = {
         id: newOrderData.id,
-        table_number: tableNumber,
+        table_number: Number(tableNumber),
         customer_name: 'Counter Sale',
         status: 'READY',
         payment_method: posPaymentMethod,
