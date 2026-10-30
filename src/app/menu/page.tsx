@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Image from 'next/image';
 import { createClient } from '@/utils/supabase/client';
 import { useSearchParams } from 'next/navigation';
@@ -20,14 +20,24 @@ interface CartItem extends MenuItem {
   quantity: number;
 }
 
-export default function MenuPage() {
+function MenuContent() {
   const supabase = createClient();
 
   const searchParams = useSearchParams();
   
   // Pre-fill from URL query string if available (e.g. /menu?table=3), otherwise default to '1'
-  const initialTable = searchParams.get('table') || searchParams.get('table_id') || '1';
+  const initialTable = searchParams ? (searchParams.get('table') || searchParams.get('table_id') || '1') : '1';
   const [tableNumber, setTableNumber] = useState(initialTable);
+
+  // Read search parameters safely after mount
+  useEffect(() => {
+    if (searchParams) {
+      const table = searchParams.get('table') || searchParams.get('table_id');
+      if (table) {
+        setTableNumber(table);
+      }
+    }
+  }, [searchParams]);
   
   const [categories, setCategories] = useState<any[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -131,7 +141,6 @@ export default function MenuPage() {
       if (existingTable) {
         resolvedTableId = existingTable.id;
       } else {
-        // Insert only table_number to match your database schema
         const { data: newTable, error: tableError } = await (supabase as any)
           .from('restaurant_tables')
           .insert({ 
@@ -650,5 +659,18 @@ export default function MenuPage() {
         </div>
       )}
     </div>
+  );
+}
+
+// Wrap in Suspense boundary for Next.js 16 build/prerender compatibility
+export default function MenuPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-950 text-amber-400 flex items-center justify-center font-mono text-xs">
+        Loading menu...
+      </div>
+    }>
+      <MenuContent />
+    </Suspense>
   );
 }
