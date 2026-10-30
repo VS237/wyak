@@ -53,7 +53,7 @@ export default function MenuPage() {
         if (catData) setCategories([{ id: 'ALL', name: 'All Items', icon: '✨' }, ...catData]);
 
         // 2. Fetch Available Menu Items with Categories
-        const { data: menuData, error } = await supabase
+        const { data: menuData, error } = await (supabase as any)
           .from('menu_items')
           .select('*, categories(name, slug)')
           .eq('is_available', true);
@@ -122,7 +122,7 @@ export default function MenuPage() {
       let resolvedTableId: string | null = null;
       const parsedTableNum = parseInt(tableNumber, 10);
 
-      const { data: existingTable } = await supabase
+      const { data: existingTable } = await (supabase as any)
         .from('restaurant_tables')
         .select('id')
         .eq('table_number', parsedTableNum)
@@ -132,7 +132,7 @@ export default function MenuPage() {
         resolvedTableId = existingTable.id;
       } else {
         // Insert only table_number to match your database schema
-        const { data: newTable, error: tableError } = await supabase
+        const { data: newTable, error: tableError } = await (supabase as any)
           .from('restaurant_tables')
           .insert({ 
             table_number: parsedTableNum 
@@ -145,7 +145,7 @@ export default function MenuPage() {
       }
 
       // 2. Insert order details into the orders table with the linked table_id
-      const { data: orderData, error: orderError } = await supabase
+      const { data: orderData, error: orderError } = await (supabase as any)
         .from('orders')
         .insert({
           total_amount: cartTotal,
@@ -167,7 +167,7 @@ export default function MenuPage() {
         unit_price: Number(i.price),
       }));
 
-      const { error: itemsError } = await supabase
+      const { error: itemsError } = await (supabase as any)
         .from('order_items')
         .insert(orderItemsPayload);
 
