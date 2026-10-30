@@ -1,5 +1,14 @@
-import Link from 'next/link';
+'use client';
+
+import React, { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
+import { createClient } from '@/utils/supabase/client';
+
+// Add this line to disable static prerendering build crashes
+export const dynamic = 'force-dynamic';
+
+import Link from 'next/link';
 
 export default function LandingPage() {
   return (
