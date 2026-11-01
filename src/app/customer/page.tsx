@@ -10,8 +10,8 @@ function LandingPageContent() {
   const searchParams = useSearchParams();
   const supabase = createClient();
 
-  // Capture table number from URL query string (e.g. ?table=5)
-  const tableParam = searchParams.get('table');
+  // Capture table number safely
+  const tableParam = searchParams ? searchParams.get('table') : null;
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -33,31 +33,26 @@ function LandingPageContent() {
     try {
       setLoading(true);
 
-      // 1. Check if a customer with this phone number already exists
-      const { data: existingCustomer, error: fetchError } = await supabase
+      const { data: existingCustomer, error: fetchError } = await (supabase as any)
         .from('customers')
         .select('*')
         .eq('phone_number', sanitizedPhone)
         .maybeSingle();
 
-      if (fetchError) {
-        throw fetchError;
-      }
+      if (fetchError) throw fetchError;
 
       let customer;
 
       if (existingCustomer) {
-        // 2. If phone exists, verify that the name matches (case-insensitive check)
-        if (existingCustomer.full_name.toLowerCase() !== trimmedName.toLowerCase()) {
-          setErrorMsg('This phone number is already registered under a different name. Please enter the correct name associated with this number.');
+        const existingName = existingCustomer.full_name || '';
+        if (existingName.toLowerCase() !== trimmedName.toLowerCase()) {
+          setErrorMsg('This phone number is registered under a different name. Please enter the name linked to this phone number.');
           setLoading(false);
           return;
         }
-        // Name matches, proceed as returning user login
         customer = existingCustomer;
       } else {
-        // 3. If phone does not exist, register a new user
-        const { data: newCustomer, error: insertError } = await supabase
+        const { data: newCustomer, error: insertError } = await (supabase as any)
           .from('customers')
           .insert({
             full_name: trimmedName,
@@ -66,35 +61,35 @@ function LandingPageContent() {
           .select()
           .single();
 
-        if (insertError) {
-          throw insertError;
-        }
+        if (insertError) throw insertError;
         customer = newCustomer;
       }
 
-      // 4. Fetch table details if table parameter exists in URL
       let tableId = null;
       if (tableParam) {
-        const { data: tableData } = await supabase
-          .from('restaurant_tables')
-          .select('id, table_number')
-          .eq('table_number', parseInt(tableParam, 10))
-          .single();
+        const parsedTableNum = parseInt(tableParam, 10);
+        if (!isNaN(parsedTableNum)) {
+          const { data: tableData } = await (supabase as any)
+            .from('restaurant_tables')
+            .select('id, table_number')
+            .eq('table_number', parsedTableNum)
+            .maybeSingle();
 
-        if (tableData) {
-          tableId = tableData.id;
+          if (tableData) {
+            tableId = tableData.id;
+          }
         }
       }
 
-      // 5. Store session context locally for checkout / order placement
-      sessionStorage.setItem('customerId', customer.id);
-      sessionStorage.setItem('customerName', customer.full_name);
-      sessionStorage.setItem('customerPhone', customer.phone_number);
-      if (tableParam) sessionStorage.setItem('tableNumber', tableParam);
-      if (tableId) sessionStorage.setItem('tableId', tableId);
-      document.cookie = `wyak_guest_name=${encodeURIComponent(customer.full_name)}; path=/; max-age=86400; SameSite=Lax`;
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('customerId', customer.id);
+        sessionStorage.setItem('customerName', customer.full_name || trimmedName);
+        sessionStorage.setItem('customerPhone', customer.phone_number);
+        if (tableParam) sessionStorage.setItem('tableNumber', tableParam);
+        if (tableId) sessionStorage.setItem('tableId', tableId);
+        document.cookie = `wyak_guest_name=${encodeURIComponent(customer.full_name || trimmedName)}; path=/; max-age=86400; SameSite=Lax`;
+      }
 
-      // 6. Redirect guest to the menu page
       router.push('/menu');
     } catch (err: any) {
       console.error('Error starting order session:', err);
@@ -106,7 +101,7 @@ function LandingPageContent() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-amber-600 to-amber-900 p-6 flex flex-col justify-between items-center text-white">
-      {/* Centered Logo Display */}
+      {/* Centered Logo */}
       <div className="flex items-center justify-center cursor-pointer w-32 h-32 rounded-full bg-white shadow-xl border border-gray-100 p-4">
         <Image
           src="/wyak-logo-orange.png"
@@ -114,11 +109,12 @@ function LandingPageContent() {
           width={120}
           height={120}
           className="h-auto w-24 object-contain"
+          priority
         />
       </div>
 
       {/* Header Info & Table Badge */}
-      <div className="text-center pt-0 space-y-2">
+      <div className="text-center space-y-2">
         <h1 className="text-3xl font-black">Welcome</h1>
         {tableParam ? (
           <span className="inline-block bg-amber-500/30 text-amber-100 text-xs font-semibold px-3 py-1 rounded-full border border-amber-300/30">
@@ -140,7 +136,6 @@ function LandingPageContent() {
           </div>
         )}
 
-        {/* Name Input Field */}
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1">
             Your Name <span className="text-red-500">*</span>
@@ -156,7 +151,6 @@ function LandingPageContent() {
           />
         </div>
 
-        {/* Phone Number Input Field */}
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1">
             Phone Number <span className="text-red-500">*</span>
@@ -187,29 +181,23 @@ function LandingPageContent() {
           </p>
         </div>
 
-        {/* Submit Button */}
         <button
           type="submit"
           disabled={loading}
           className="w-full py-4 bg-amber-600 hover:bg-amber-700 active:scale-[0.99] text-white font-bold rounded-2xl cursor-pointer transition-all shadow-md shadow-amber-600/20 flex justify-center items-center gap-2 disabled:opacity-50"
         >
-          {loading ? (
-            <span>Connecting...</span>
-          ) : (
-            <span>Browse Menu & Order</span>
-          )}
+          {loading ? <span>Connecting...</span> : <span>Browse Menu & Order</span>}
         </button>
       </form>
 
       {/* Footer */}
       <footer className="text-center text-[11px] font-serif uppercase tracking-[0.2em] text-amber-200/80">
-        Powered by Digital QR Service
+        © 2026 WYAK Resto Suite. Bonanjo, Douala, Cameroun.
       </footer>
     </main>
   );
 }
 
-// Wrap in Suspense for Next.js App Router query parameter handling
 export default function HomePage() {
   return (
     <Suspense fallback={<div className="min-h-screen bg-amber-800 text-white flex items-center justify-center">Loading...</div>}>

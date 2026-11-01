@@ -435,14 +435,14 @@ function MenuContent() {
             No items found matching your filter criteria.
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1.5">
             {filteredItems.map((item) => {
               const inCartItem = cart.find((i) => i.id === item.id);
 
               return (
                 <div
                   key={item.id}
-                  className="relative h-96 rounded-3xl overflow-hidden shadow-lg border border-gray-100 group transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 bg-gray-950"
+                  className="relative h-96 rounded-2xl overflow-hidden shadow-lg border border-gray-100 group transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 bg-gray-950"
                 >
                   <img
                     src={item.image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&auto=format&fit=crop&q=80'}
