@@ -436,7 +436,7 @@ function MenuContent() {
               placeholder="Search dishes, drinks..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 bg-gray-200 border border-gray-200 rounded-xl text-base sm:text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 transition-all"
+              className="w-full pl-9 pr-3 py-2.5 bg-gray-200 border border-gray-200 rounded-xl text-base sm:text-xs text-gray-900 placeholder-gray-500 focus:outline-none focus:border-amber-500 transition-all"
             />
             <span className="absolute left-3 top-3 text-xs text-gray-400">🔍</span>
           </div>
