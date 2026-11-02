@@ -82,12 +82,18 @@ function LandingPageContent() {
       }
 
       if (typeof window !== 'undefined') {
+        const SESSION_DURATION_MS = 2 * 60 * 60 * 1000; // 2 hours
+        const expiryTime = new Date().getTime() + SESSION_DURATION_MS;
+
         sessionStorage.setItem('customerId', customer.id);
         sessionStorage.setItem('customerName', customer.full_name || trimmedName);
         sessionStorage.setItem('customerPhone', customer.phone_number);
+        sessionStorage.setItem('sessionExpiry', expiryTime.toString()); // Added expiry check
+        
         if (tableParam) sessionStorage.setItem('tableNumber', tableParam);
         if (tableId) sessionStorage.setItem('tableId', tableId);
-        document.cookie = `wyak_guest_name=${encodeURIComponent(customer.full_name || trimmedName)}; path=/; max-age=86400; SameSite=Lax`;
+        
+        document.cookie = `wyak_guest_name=${encodeURIComponent(customer.full_name || trimmedName)}; path=/; max-age=7200; SameSite=Lax`;
       }
 
       router.push('/menu');

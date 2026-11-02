@@ -54,15 +54,34 @@ function MenuContent() {
 
   // Fetch Categories & Menu Items from Supabase on load
   useEffect(() => {
+    // 1. Session Expiry & Validation Check
+    if (typeof window !== 'undefined') {
+      try {
+        const expiry = sessionStorage.getItem('sessionExpiry');
+        const customerId = sessionStorage.getItem('customerId');
+        const now = new Date().getTime();
+
+        // If customer is missing or session has expired -> redirect to home page
+        if (!customerId || !expiry || now > parseInt(expiry, 10)) {
+          sessionStorage.clear();
+          window.location.href = '/';
+          return; // Halt further execution
+        }
+      } catch (e) {
+        console.warn('Storage security restriction on browser/device:', e);
+      }
+    }
+
+    // 2. Fetch Categories & Available Menu Items
     async function fetchMenuData() {
       try {
         setLoading(true);
 
-        // 1. Fetch Categories
+        // Fetch Categories
         const { data: catData } = await supabase.from('categories').select('*');
         if (catData) setCategories([{ id: 'ALL', name: 'All Items', icon: '✨' }, ...catData]);
 
-        // 2. Fetch Available Menu Items with Categories
+        // Fetch Available Menu Items with Categories
         const { data: menuData, error } = await (supabase as any)
           .from('menu_items')
           .select('*, categories(name, slug)')
