@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { createClient } from '@/utils/supabase/client';
 import { createPersonnelAccount } from './actions';
+import Image from 'next/image';
 
 const RevenueLineChart = dynamic(
   () => import('./components/AdminCharts').then((mod) => mod.RevenueLineChart),
@@ -266,12 +267,20 @@ export default function AdminDashboard() {
       {/* Top Admin Header */}
       <header className="bg-gray-900 border-b border-gray-800 px-4 sm:px-6 py-4 flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 sticky top-0 z-20 shadow-md">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-600 flex items-center justify-center text-white font-black shadow-lg shadow-amber-600/20 shrink-0">
-            👑
+          <div className="w-20 h-10 rounded-2xl  from-amber-00 to-amber-00 flex items-center justify-center text-white font-black text-lg">
+            <Image
+              src="/wyak-logo-orange.png"
+              alt="WYAK Resto Suite Logo"
+              width={120}
+              height={120}
+              className="h-auto w-24 object-contain"
+            />
           </div>
           <div>
-            <h1 className="text-base sm:text-lg font-black text-white tracking-tight">Admin Executive Suite</h1>
-            <p className="text-[11px] sm:text-xs text-gray-400">Panneau de Contrôle • WYAK Resto Suite Douala</p>
+            <h1 className="text-base sm:text-lg font-black text-white tracking-tight">WYAK Resto Suite</h1>
+             <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+              Panneau de contrôle Administrateur
+            </span>
           </div>
         </div>
 

@@ -346,7 +346,7 @@ function ManagerDashboardContent() {
       {/* Dynamic Top Navbar */}
       <header className="bg-gray-900/80 backdrop-blur-md border-b border-gray-800/80 px-6 py-3.5 flex flex-col md:flex-row justify-between items-center gap-4 sticky top-0 z-30">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-00 to-amber-00 flex items-center justify-center text-white font-black shadow-lg shadow-amber-600/20 text-lg">
+          <div className="w-20 h-10 rounded-2xl  from-amber-00 to-amber-00 flex items-center justify-center text-white font-black text-lg">
             <Image
               src="/wyak-logo-orange.png"
               alt="WYAK Resto Suite Logo"
@@ -358,11 +358,10 @@ function ManagerDashboardContent() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-base font-extrabold text-white tracking-tight">WYAK Resto Suite</h1>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                Operations
-              </span>
             </div>
-            <p className="text-xs text-gray-400">Manager Control & Operational Portal</p>
+            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+              Manager Portal
+            </span>
           </div>
         </div>
 

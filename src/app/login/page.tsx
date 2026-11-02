@@ -4,15 +4,17 @@ import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
 import Link from 'next/link';
+import Image from 'next/image';
 
 function LoginForm() {
   const [identifier, setIdentifier] = useState(''); // Holds email or name/username
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const searchParams = useSearchParams();
-  const errorParam = searchParams.get('error');
+  const errorParam = searchParams ? searchParams.get('error') : null;
   const router = useRouter();
 
   // Create client-side Supabase instance
@@ -97,9 +99,16 @@ function LoginForm() {
       <div className="text-center space-y-2">
         <Link
           href="/"
-          className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-orange-500 font-black text-xl mb-1 shadow-lg shadow-orange-500/10"
+          className="inline-flex items-center justify-center p-2 rounded-2xl mb-1 transition-all active:scale-95"
         >
-          W
+          <Image
+            src="/wyak-logo-orange.png"
+            alt="WYAK Resto Suite Logo"
+            width={120}
+            height={120}
+            className="h-auto w-24 object-contain"
+            priority
+          />
         </Link>
         <h1 className="text-2xl font-black uppercase tracking-tight text-white">
           WYAK <span className="text-orange-500">Resto Suite</span>
@@ -123,9 +132,9 @@ function LoginForm() {
       )}
 
       {/* Main Login Card */}
-      <div className="bg-gray-900 border border-gray-800 rounded-3xl p-8 shadow-2xl backdrop-blur-md">
+      <div className="bg-gray-900 border border-gray-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-md">
         {error && (
-          <div className="mb-6 p-3.5 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-400 text-xs font-bold text-center flex items-center justify-center gap-2">
+          <div className="mb-5 p-3.5 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-400 text-xs font-bold text-center flex items-center justify-center gap-2">
             <span>⚠️</span> {error}
           </div>
         )}
@@ -140,7 +149,8 @@ function LoginForm() {
               placeholder="e.g. chef_douala or staff@wyak.local"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-              className="w-full p-3.5 bg-gray-950 border border-gray-800 rounded-xl text-xs font-bold text-white placeholder:text-gray-600 focus:outline-none focus:border-orange-500 transition-colors"
+              /* text-base prevents iOS Safari zoom while scaling to text-xs on larger screens */
+              className="w-full p-3.5 bg-gray-950 border border-gray-800 rounded-xl text-base sm:text-xs font-bold text-white placeholder:text-gray-600 focus:outline-none focus:border-orange-500 transition-colors"
               required
             />
           </div>
@@ -149,22 +159,39 @@ function LoginForm() {
             <label className="block text-xs font-extrabold text-gray-300 uppercase tracking-wider mb-1.5">
               Password
             </label>
-            <input
-              type="password"
-              placeholder="••••••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-3.5 bg-gray-950 border border-gray-800 rounded-xl text-xs font-bold text-white placeholder:text-gray-600 focus:outline-none focus:border-orange-500 transition-colors"
-              required
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="••••••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full p-3.5 pr-10 bg-gray-950 border border-gray-800 rounded-xl text-base sm:text-xs font-bold text-white placeholder:text-gray-600 focus:outline-none focus:border-orange-500 transition-colors"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3.5 top-3.5 text-gray-500 hover:text-gray-300 text-xs font-bold cursor-pointer"
+                tabIndex={-1}
+              >
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-orange-600/25 transition-all active:scale-95 mt-2 cursor-pointer disabled:opacity-50"
+            className="w-full py-3.5 bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-orange-600/25 transition-all active:scale-[0.98] mt-2 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {loading ? 'Authenticating...' : 'Sign In to Portal ➔'}
+            {loading ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                <span>Authenticating...</span>
+              </>
+            ) : (
+              <span>Sign In to Portal ➔</span>
+            )}
           </button>
         </form>
       </div>
@@ -184,9 +211,9 @@ function LoginForm() {
 
 export default function StaffLoginPage() {
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100 flex flex-col items-center justify-center p-6 relative selection:bg-orange-500 selection:text-black">
+    <div className="min-h-screen bg-gray-950 text-gray-100 flex flex-col items-center justify-center p-4 sm:p-6 relative selection:bg-orange-500 selection:text-black overflow-x-hidden">
       {/* Background Glow Effect */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[250px] bg-orange-500/10 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] sm:w-[400px] h-[200px] sm:h-[250px] bg-orange-500/10 blur-[100px] sm:blur-[120px] rounded-full pointer-events-none" />
 
       <Suspense
         fallback={
