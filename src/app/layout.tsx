@@ -13,7 +13,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" translate="no">
-      <body className="antialiased bg-gray-950 text-gray-100 font-sans">
+      <body className="antialiased bg-gray-950 text-gray-100 font-sans overflow-x-hidden selection:bg-amber-500 selection:text-gray-950">
         {children}
         {/* Global Floating Logout Widget for All Pages */}
         <FloatingLogout />

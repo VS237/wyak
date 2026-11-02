@@ -367,7 +367,7 @@ function MenuContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 pb-32">
+    <div className="min-h-[100dvh] bg-gray-50 text-gray-900 pb-32">
       {/* Light Navbar */}
       <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-gray-200 px-4 py-3 shadow-xs">
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
@@ -436,7 +436,7 @@ function MenuContent() {
               placeholder="Search dishes, drinks..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-3 bg-gray-100 border border-gray-300 rounded-2xl text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
+              className="w-full pl-9 pr-3 py-2.5 bg-gray-950 border border-gray-800 rounded-xl text-base sm:text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 transition-all"
             />
             <span className="absolute left-3 top-3 text-xs text-gray-400">🔍</span>
           </div>
