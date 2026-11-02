@@ -39,7 +39,7 @@ export interface ManagerOrder {
 }
 
 function ManagerDashboardContent() {
-    const supabase = createClient();
+  const supabase = createClient();
   const [activeTab, setActiveTab] = useState<'ORDERS' | 'POS' | 'REPORT'>('ORDERS');
   const [orders, setOrders] = useState<ManagerOrder[]>([]);
   const [servers, setServers] = useState<Server[]>([]);
@@ -51,6 +51,9 @@ function ManagerDashboardContent() {
   
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+
+  // Date filter state: 'TODAY', 'YESTERDAY', 'ALL', or a 'YYYY-MM-DD' string
+  const [selectedDateFilter, setSelectedDateFilter] = useState<string>('TODAY');
 
   const searchParams = useSearchParams();
   const initialTable = searchParams.get('table') || searchParams.get('table_id') || '1';
@@ -119,7 +122,7 @@ function ManagerDashboardContent() {
           payment_method: (ord.payment_method ? ord.payment_method.toUpperCase() : 'CASH') as any,
           payment_status: (ord.payment_status ? ord.payment_status.toUpperCase() : 'UNPAID') as any,
           assigned_server_id: ord.assigned_server_id || 'unassigned',
-          created_at: new Date(ord.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          created_at: ord.created_at,
           items: (ord.order_items || []).map((item: any) => ({
             id: item.menu_items?.id || item.id,
             name: item.menu_items?.name || 'Dish Item',
@@ -718,175 +721,330 @@ function ManagerDashboardContent() {
               </div>
             )}
 
-            {/* ================= TAB 3: FINANCIAL REPORT ================= */}
-            {/* ================= TAB 3: FINANCIAL REPORT ================= */}
+            {/* ================= TAB 3: FINANCIAL REPORT WITH DAILY DATE FILTER ================= */}
             {activeTab === 'REPORT' && (
               <div className="space-y-6">
                 
-                {/* Header & Print Button */}
-                <div className="flex justify-between items-center no-print">
+                {/* Top Bar: Title + Date Selector + Print */}
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
                   <div>
                     <h2 className="text-xs font-extrabold uppercase tracking-wider text-gray-400">
-                      Shift Financial Summary
+                      Daily Financial Report & Audit
                     </h2>
-                    <p className="text-[11px] text-gray-500 mt-0.5">Official audit and transaction ledger</p>
+                    <p className="text-[11px] text-gray-500 mt-0.5">Filter records by date to generate daily shift reports</p>
                   </div>
-                  <button
-                    onClick={() => window.print()}
-                    className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-extrabold rounded-xl cursor-pointer transition-all shadow-lg shadow-amber-600/20 flex items-center gap-2"
-                  >
-                    <span>🖨️</span> Export / Print Ledger
-                  </button>
+
+                  <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                    {/* Date Filter Quick Buttons */}
+                    <div className="flex bg-gray-900 border border-gray-800 p-1 rounded-xl text-xs font-bold">
+                      <button
+                        onClick={() => setSelectedDateFilter('TODAY')}
+                        className={`px-3 py-1.5 rounded-lg transition-all ${
+                          selectedDateFilter === 'TODAY'
+                            ? 'bg-amber-600 text-white shadow-md'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        Today
+                      </button>
+                      <button
+                        onClick={() => setSelectedDateFilter('YESTERDAY')}
+                        className={`px-3 py-1.5 rounded-lg transition-all ${
+                          selectedDateFilter === 'YESTERDAY'
+                            ? 'bg-amber-600 text-white shadow-md'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        Yesterday
+                      </button>
+                      <button
+                        onClick={() => setSelectedDateFilter('ALL')}
+                        className={`px-3 py-1.5 rounded-lg transition-all ${
+                          selectedDateFilter === 'ALL'
+                            ? 'bg-amber-600 text-white shadow-md'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        All Days
+                      </button>
+                    </div>
+
+                    {/* Custom Specific Date Picker */}
+                    <input
+                      type="date"
+                      value={selectedDateFilter.includes('-') ? selectedDateFilter : ''}
+                      onChange={(e) => e.target.value && setSelectedDateFilter(e.target.value)}
+                      className="bg-gray-900 border border-gray-800 text-white text-xs px-3 py-1.5 rounded-xl font-mono focus:outline-none focus:border-amber-500"
+                    />
+
+                    {/* Print Button */}
+                    <button
+                      onClick={() => window.print()}
+                      className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-extrabold rounded-xl transition-all shadow-lg shadow-amber-600/20 flex items-center gap-2 cursor-pointer ml-auto md:ml-0"
+                    >
+                      <span>🖨️</span> Print Daily Report
+                    </button>
+                  </div>
                 </div>
 
-                {/* ================= PRINTABLE & ONSCREEN CONTAINER ================= */}
-                <div id="printable-report" className="bg-gray-900 border border-gray-800 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-md">
+                {/* Filter Execution & Calculation Logic with Robust Local Date Parsing */}
+                {(() => {
+                  // Helper function to safely extract YYYY-MM-DD from any date string without timezone shifts
+                  const extractDateKey = (dateInput: string | null | undefined): string | null => {
+                    if (!dateInput) return null;
+                    // If it's already a YYYY-MM-DD string
+                    if (/^\d{4}-\d{2}-\d{2}$/.test(dateInput)) return dateInput;
+                    
+                    const d = new Date(dateInput);
+                    if (isNaN(d.getTime())) return null;
+                    
+                    // Extract local year, month, and day to avoid UTC conversion discrepancies
+                    const year = d.getFullYear();
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    return `${year}-${month}-${day}`;
+                  };
+
+                  const todayStr = extractDateKey(new Date().toISOString()) || '';
                   
-                  {/* Print-Only Title Header (Visible only when printing) */}
-                  <div className="hidden print:block p-6 border-b border-gray-300 text-center bg-white text-black font-mono">
-                    <h1 className="text-xl font-black uppercase tracking-tight">WYAK Resto Suite</h1>
-                    <p className="text-xs text-gray-600">Bonanjo, Douala - Cameroun | Tél: +237 655 98 37 15</p>
-                    <div className="mt-3 pt-2 border-t border-dashed border-gray-400 flex justify-between text-xs font-bold">
-                      <span>SHIFT TRANSACTIONS LEDGER</span>
-                      <span>DATE: {new Date().toLocaleDateString('fr-FR')}</span>
-                    </div>
-                  </div>
+                  const yesterdayObj = new Date();
+                  yesterdayObj.setDate(yesterdayObj.getDate() - 1);
+                  const yesterdayStr = extractDateKey(yesterdayObj.toISOString()) || '';
 
-                  {/* Header Bar */}
-                  <div className="px-6 py-5 border-b border-gray-800 flex flex-wrap justify-between items-center gap-4 bg-gray-900/60 no-print">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                      </div>
-                      <div>
-                        <h3 className="font-extrabold text-white text-sm tracking-tight">Shift Transactions Ledger</h3>
-                        <p className="text-[11px] text-gray-400 font-medium mt-0.5">Real-time log of customer orders and payments</p>
-                      </div>
-                    </div>
+                  // Filter orders securely comparing YYYY-MM-DD strings
+                  // Inside activeTab === 'REPORT' IIFE:
+                  const filteredOrders = orders.filter((o) => {
+                    if (selectedDateFilter === 'ALL') return true;
+                    if (!o.created_at) return false;
 
-                    <div className="flex items-center gap-2">
-                      <span className="px-3 py-1 bg-gray-950 border border-gray-800 rounded-full text-[11px] font-mono font-bold text-amber-400">
-                        {orders.length} {orders.length === 1 ? 'Record' : 'Records'}
-                      </span>
-                    </div>
-                  </div>
+                    // Slice the YYYY-MM-DD directly from the ISO timestamp string
+                    const orderDateStr = String(o.created_at).slice(0, 10);
 
-                  {/* Table Area */}
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs text-gray-300 print:text-black print:bg-white">
-                      <thead className="bg-gray-950 text-gray-400 uppercase text-[10px] font-black tracking-widest border-b border-gray-800 select-none print:bg-gray-100 print:text-black">
-                        <tr>
-                          <th className="px-6 py-4">Order ID</th>
-                          <th className="px-6 py-4">Source / Table</th>
-                          <th className="px-6 py-4">Timestamp</th>
-                          <th className="px-6 py-4">Payment Method</th>
-                          <th className="px-6 py-4">Status</th>
-                          <th className="px-6 py-4 text-right">Total Amount</th>
-                        </tr>
-                      </thead>
+                    const now = new Date();
+                    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                    
+                    const yesterday = new Date();
+                    yesterday.setDate(now.getDate() - 1);
+                    const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+
+                    if (selectedDateFilter === 'TODAY') return orderDateStr === todayStr;
+                    if (selectedDateFilter === 'YESTERDAY') return orderDateStr === yesterdayStr;
+                    
+                    // Matches custom date input (YYYY-MM-DD)
+                    return orderDateStr === selectedDateFilter;
+                  });
+
+                  // Calculate totals for filtered dataset
+                  const totalRevenue = filteredOrders.reduce((sum, o) => {
+                    const itemTotal = o.items && Array.isArray(o.items)
+                      ? o.items.reduce((s: number, i: any) => s + (Number(i.price) || 0) * (Number(i.quantity) || 0), 0)
+                      : (Number(o.total_amount) || 0);
+                    return sum + itemTotal;
+                  }, 0);
+
+                  const cashRevenue = filteredOrders.reduce((sum, o) => {
+                    const method = (o.payment_method || 'CASH').toUpperCase();
+                    if (method.includes('CASH')) {
+                      const itemTotal = o.items && Array.isArray(o.items)
+                        ? o.items.reduce((s: number, i: any) => s + (Number(i.price) || 0) * (Number(i.quantity) || 0), 0)
+                        : (Number(o.total_amount) || 0);
+                      return sum + itemTotal;
+                    }
+                    return sum;
+                  }, 0);
+
+                  const momoRevenue = totalRevenue - cashRevenue;
+
+                  // Active Date Label for Header
+                  const displayDateLabel = selectedDateFilter === 'TODAY'
+                    ? `Today (${new Date().toLocaleDateString('fr-FR')})`
+                    : selectedDateFilter === 'YESTERDAY'
+                    ? `Yesterday (${yesterdayObj.toLocaleDateString('fr-FR')})`
+                    : selectedDateFilter === 'ALL'
+                    ? 'All Time Records'
+                    : (() => {
+                        const [y, m, d] = selectedDateFilter.split('-').map(Number);
+                        if (!y || !m || !d) return selectedDateFilter;
+                        const parsed = new Date(y, m - 1, d);
+                        return isNaN(parsed.getTime()) 
+                          ? selectedDateFilter 
+                          : parsed.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                      })();
+
+                  return (
+                    <div id="printable-report" className="space-y-6">
                       
-                      <tbody className="divide-y divide-gray-800/60 font-medium print:divide-gray-300">
-                        {orders.length === 0 ? (
-                          <tr>
-                            <td colSpan={6} className="px-6 py-12 text-center text-gray-500 font-medium">
-                              <div className="flex flex-col items-center gap-2">
-                                <span className="text-2xl">🧾</span>
-                                <p className="text-xs">No transactions recorded for this shift yet.</p>
-                              </div>
-                            </td>
-                          </tr>
-                        ) : (
-                          orders.map((o) => {
-                            const amount = o.items && Array.isArray(o.items) 
-                              ? o.items.reduce((s: number, i: any) => s + (Number(i.price) || 0) * (Number(i.quantity) || 0), 0) 
-                              : (o.total_amount || 0);
-                            
-                            const formattedTime = o.created_at ? new Date(o.created_at).toLocaleTimeString('fr-FR', {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            }) : 'Just now';
+                      {/* Printable Header (Shows when printing) */}
+                      <div className="hidden print:block p-6 border border-gray-300 rounded-2xl text-center bg-white text-black font-mono">
+                        <h1 className="text-xl font-black uppercase tracking-tight">WYAK Resto Suite</h1>
+                        <p className="text-xs text-gray-600">Bonanjo, Douala - Cameroun | Tél: +237 655 98 37 15</p>
+                        <div className="mt-3 pt-2 border-t border-dashed border-gray-400 flex justify-between text-xs font-bold">
+                          <span>DAILY FINANCIAL REPORT</span>
+                          <span>FILTER: {displayDateLabel.toUpperCase()}</span>
+                        </div>
+                      </div>
 
-                            const methodUpper = (o.payment_method || 'CASH').toUpperCase();
-                            const isPaid = o.payment_status === 'PAID';
+                      {/* Daily Metrics Summary Cards */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 no-print">
+                        
+                        {/* Total Sales Card */}
+                        <div className="bg-gray-900 border border-gray-800 p-5 rounded-2xl shadow-xl">
+                          <span className="text-[10px] text-gray-400 uppercase font-black tracking-wider">Total Sales ({filteredOrders.length} orders)</span>
+                          <p className="font-mono text-xl font-black text-amber-400 mt-1">
+                            {totalRevenue.toLocaleString()} <span className="text-xs text-orange-400">XAF</span>
+                          </p>
+                        </div>
 
-                            return (
-                              <tr key={o.id} className="hover:bg-gray-800/40 transition-colors group print:hover:bg-transparent">
-                                
-                                {/* Order ID */}
-                                <td className="px-6 py-4 font-mono font-bold text-orange-400 group-hover:text-orange-300 print:text-black">
-                                  #{o.id.slice(0, 8).toUpperCase()}
-                                </td>
+                        {/* Cash Revenue Card */}
+                        <div className="bg-gray-900 border border-gray-800 p-5 rounded-2xl shadow-xl">
+                          <span className="text-[10px] text-gray-400 uppercase font-black tracking-wider">Cash Collected</span>
+                          <p className="font-mono text-xl font-black text-emerald-400 mt-1">
+                            {cashRevenue.toLocaleString()} <span className="text-xs text-emerald-500">XAF</span>
+                          </p>
+                        </div>
 
-                                {/* Table / Source */}
-                                <td className="px-6 py-4">
-                                  {o.table_number === 0 || !o.table_number ? (
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-800 text-gray-300 rounded-lg text-[11px] font-bold print:bg-transparent print:text-black print:p-0">
-                                      <span>🛍️</span> Direct POS
-                                    </span>
-                                  ) : (
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-orange-500/10 text-orange-300 border border-orange-500/20 rounded-lg text-[11px] font-bold print:bg-transparent print:text-black print:p-0">
-                                      <span>🍽️</span> Table #{o.table_number}
-                                    </span>
-                                  )}
-                                </td>
+                        {/* Mobile Money Revenue Card */}
+                        <div className="bg-gray-900 border border-gray-800 p-5 rounded-2xl shadow-xl">
+                          <span className="text-[10px] text-gray-400 uppercase font-black tracking-wider">Mobile Money (MoMo / OM)</span>
+                          <p className="font-mono text-xl font-black text-blue-400 mt-1">
+                            {momoRevenue.toLocaleString()} <span className="text-xs text-blue-500">XAF</span>
+                          </p>
+                        </div>
 
-                                {/* Time */}
-                                <td className="px-6 py-4 text-gray-400 font-mono text-[11px] print:text-gray-700">
-                                  {formattedTime !== 'Invalid Date' ? formattedTime : o.created_at}
-                                </td>
+                      </div>
 
-                                {/* Method Badge */}
-                                <td className="px-6 py-4">
-                                  <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
-                                    methodUpper.includes('MOMO') || methodUpper.includes('OM') || methodUpper.includes('MOBILE')
-                                      ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20 print:bg-transparent print:text-black'
-                                      : methodUpper.includes('CARD')
-                                      ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20 print:bg-transparent print:text-black'
-                                      : 'bg-gray-800 text-gray-300 border border-gray-700 print:bg-transparent print:text-black'
-                                  }`}>
-                                    {methodUpper}
-                                  </span>
-                                </td>
+                      {/* Main Table Card for Selected Date */}
+                      <div className="bg-gray-900 border border-gray-800 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-md print:border-black print:bg-white">
+                        
+                        {/* Table Top Title */}
+                        <div className="px-6 py-4 bg-gray-950 border-b border-gray-800 flex justify-between items-center print:bg-gray-100 print:border-black">
+                          <div className="flex items-center gap-2">
+                            <span className="text-amber-500 font-bold">📅</span>
+                            <h3 className="font-black text-xs text-white uppercase tracking-wider capitalize print:text-black">
+                              Report Records: {displayDateLabel}
+                            </h3>
+                          </div>
+                          <span className="bg-gray-800 text-gray-300 px-2.5 py-0.5 rounded-full text-[10px] font-bold print:bg-gray-200 print:text-black">
+                            {filteredOrders.length} {filteredOrders.length === 1 ? 'transaction' : 'transactions'}
+                          </span>
+                        </div>
 
-                                {/* Status Badge */}
-                                <td className="px-6 py-4">
-                                  <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                                    isPaid 
-                                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 print:bg-transparent print:text-black' 
-                                      : 'bg-rose-500/10 text-rose-400 border border-rose-500/20 print:bg-transparent print:text-black'
-                                  }`}>
-                                    <span className={`w-1.5 h-1.5 rounded-full ${isPaid ? 'bg-emerald-400' : 'bg-rose-400'} print:hidden`} />
-                                    {o.payment_status || 'PENDING'}
-                                  </span>
-                                </td>
-
-                                {/* Amount */}
-                                <td className="px-6 py-4 text-right font-mono font-black text-sm text-white group-hover:text-amber-300 transition-colors print:text-black">
-                                  {amount.toLocaleString()} <span className="text-xs text-orange-400 font-bold print:text-black">XAF</span>
-                                </td>
-
+                        {/* Table Area */}
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-xs text-gray-300 print:text-black print:bg-white">
+                            <thead className="bg-gray-950/60 text-gray-400 uppercase text-[10px] font-black tracking-widest border-b border-gray-800 select-none print:bg-gray-50 print:text-black">
+                              <tr>
+                                <th className="px-6 py-4">Order ID</th>
+                                <th className="px-6 py-4">Source / Table</th>
+                                <th className="px-6 py-4">Timestamp</th>
+                                <th className="px-6 py-4">Payment Method</th>
+                                <th className="px-6 py-4">Status</th>
+                                <th className="px-6 py-4 text-right">Total Amount</th>
                               </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                            </thead>
 
-                  {/* Table Summary Footer */}
-                  <div className="px-6 py-4 bg-gray-950/80 border-t border-gray-800 flex justify-between items-center text-xs print:bg-gray-100 print:border-black">
-                    <span className="text-gray-400 font-medium print:text-black uppercase font-bold">Shift Total Revenue</span>
-                    <span className="font-mono font-black text-base text-amber-400 print:text-black">
-                      {orders.reduce((sum, o) => {
-                        const itemTotal = o.items && Array.isArray(o.items) ? o.items.reduce((s: number, i: any) => s + (Number(i.price) || 0) * (Number(i.quantity) || 0), 0) : (o.total_amount || 0);
-                        return sum + itemTotal;
-                      }, 0).toLocaleString()} XAF
-                    </span>
-                  </div>
+                            <tbody className="divide-y divide-gray-800/60 font-medium print:divide-gray-300">
+                              {filteredOrders.length === 0 ? (
+                                <tr>
+                                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500 font-medium">
+                                    <div className="flex flex-col items-center gap-2">
+                                      <span className="text-2xl">🧾</span>
+                                      <p className="text-xs">No transactions recorded for the selected date.</p>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ) : (
+                                filteredOrders.map((o) => {
+                                  const amount = o.items && Array.isArray(o.items)
+                                    ? o.items.reduce((s: number, i: any) => s + (Number(i.price) || 0) * (Number(i.quantity) || 0), 0)
+                                    : (o.total_amount || 0);
 
-                </div>
+                                  const formattedTime = o.created_at ? new Date(o.created_at).toLocaleTimeString('fr-FR', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  }) : 'Just now';
+
+                                  const methodUpper = (o.payment_method || 'CASH').toUpperCase();
+                                  const isPaid = o.payment_status === 'PAID';
+
+                                  return (
+                                    <tr key={o.id} className="hover:bg-gray-800/40 transition-colors group print:hover:bg-transparent">
+                                      
+                                      {/* Order ID */}
+                                      <td className="px-6 py-4 font-mono font-bold text-orange-400 group-hover:text-orange-300 print:text-black">
+                                        #{o.id.slice(0, 8).toUpperCase()}
+                                      </td>
+
+                                      {/* Source / Table */}
+                                      <td className="px-6 py-4">
+                                        {o.table_number === 0 || !o.table_number ? (
+                                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-800 text-gray-300 rounded-lg text-[11px] font-bold print:bg-transparent print:text-black print:p-0">
+                                            <span>🛍️</span> Direct POS
+                                          </span>
+                                        ) : (
+                                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-orange-500/10 text-orange-300 border border-orange-500/20 rounded-lg text-[11px] font-bold print:bg-transparent print:text-black print:p-0">
+                                            <span>🍽️</span> Table #{o.table_number}
+                                          </span>
+                                        )}
+                                      </td>
+
+                                      {/* Time */}
+                                      <td className="px-6 py-4 text-gray-400 font-mono text-[11px] print:text-gray-700">
+                                        {formattedTime !== 'Invalid Date' ? formattedTime : o.created_at}
+                                      </td>
+
+                                      {/* Payment Method */}
+                                      <td className="px-6 py-4">
+                                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                                          methodUpper.includes('MOMO') || methodUpper.includes('OM') || methodUpper.includes('MOBILE')
+                                            ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20 print:bg-transparent print:text-black'
+                                            : methodUpper.includes('CARD')
+                                            ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20 print:bg-transparent print:text-black'
+                                            : 'bg-gray-800 text-gray-300 border border-gray-700 print:bg-transparent print:text-black'
+                                        }`}>
+                                          {methodUpper}
+                                        </span>
+                                      </td>
+
+                                      {/* Status Badge */}
+                                      <td className="px-6 py-4">
+                                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                                          isPaid
+                                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 print:bg-transparent print:text-black'
+                                            : 'bg-rose-500/10 text-rose-400 border border-rose-500/20 print:bg-transparent print:text-black'
+                                        }`}>
+                                          <span className={`w-1.5 h-1.5 rounded-full ${isPaid ? 'bg-emerald-400' : 'bg-rose-400'} print:hidden`} />
+                                          {o.payment_status || 'PENDING'}
+                                        </span>
+                                      </td>
+
+                                      {/* Amount */}
+                                      <td className="px-6 py-4 text-right font-mono font-black text-sm text-white group-hover:text-amber-300 transition-colors print:text-black">
+                                        {amount.toLocaleString()} <span className="text-xs text-orange-400 font-bold print:text-black">XAF</span>
+                                      </td>
+
+                                    </tr>
+                                  );
+                                })
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Daily Summary Footer */}
+                        <div className="px-6 py-5 bg-gray-950 border-t border-gray-800 flex justify-between items-center text-xs print:bg-gray-100 print:border-black">
+                          <span className="text-gray-400 font-bold uppercase tracking-wider print:text-black">Total Shift Revenue ({displayDateLabel})</span>
+                          <span className="font-mono font-black text-base text-amber-400 print:text-black">
+                            {totalRevenue.toLocaleString()} XAF
+                          </span>
+                        </div>
+
+                      </div>
+
+                    </div>
+                  );
+                })()}
+
               </div>
             )}
           </>
